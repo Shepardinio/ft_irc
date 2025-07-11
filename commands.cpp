@@ -6,7 +6,7 @@
 /*   By: mel-yand <mel-yand@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/27 15:16:19 by ajamshid          #+#    #+#             */
-/*   Updated: 2025/07/04 20:13:56 by mel-yand         ###   ########.fr       */
+/*   Updated: 2025/07/11 14:21:13 by mel-yand         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,7 @@ PRIVMSG othernick :hello privately
 
 #include "Clients.hpp"
 
+// modif mel-yand = //
 void send_msg(int fd, const std::string &message)
 {
 	for (size_t i = 0; i < clients_bj.get_pollfds().size(); ++i)
@@ -57,6 +58,11 @@ void disconnect_client(int fd)
 
 void pass(Client &client, std::string pass)
 {
+	if (client.registered)//
+	{
+		send_msg(client.fd, ":server 462 * :You may not reregister\r\n");//
+		return;
+	}
 	if (pass == server_password)
 	{
 		std::cout << "Pass OK =" << pass << std::endl;
@@ -69,7 +75,6 @@ void pass(Client &client, std::string pass)
 	}
 }
 
-// modif mel-yand = //
 void nick(Client &client, std::string nick)
 {
 	if (!client.pass_ok)
@@ -105,12 +110,25 @@ void user(Client &client, std::string user)
 
 void privmsg(Client &client, std::string message)
 {
-	std::string reciever;
-	std::string rest;
-	std::istringstream iss(message);
-	iss >> reciever;
-	std::getline(iss, rest);
-	rest = rest.substr(2);
-	std::string msg = ":" + client.nickname + " PRIVMSG " + reciever + " :" + rest + "\r\n";
-	send_msg(clients_bj.get_fd_of(reciever), msg);
+    std::cout << ">> Appel de la fonction privmsg()" << std::endl;
+    std::string reciever;
+    std::string rest;
+    std::istringstream iss(message);
+    iss >> reciever;
+    std::getline(iss, rest);
+
+    if (rest.size() >= 2 && rest[0] == ' ' && rest[1] == ':')
+        rest = rest.substr(2);
+    else if (!rest.empty() && rest[0] == ' ')
+        rest = rest.substr(1);
+
+    int dest_fd = clients_bj.get_fd_of(reciever);
+    if (dest_fd == -1)
+    {
+        send_msg(client.fd, ":server 401 " + client.nickname + " " + reciever + " :No such nick\r\n");
+        return;
+    }
+
+    std::string msg = ":" + client.nickname + " PRIVMSG " + reciever + " :" + rest + "\r\n";
+    send_msg(dest_fd, msg);
 }

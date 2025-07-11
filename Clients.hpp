@@ -15,9 +15,11 @@
 #include <sstream>
 #include <fcntl.h>
 
+#include "Channels.hpp"
+
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 512
-#define HOST_NAME "localhost"
+// #define HOST_NAME "localhost"
 
 // // ----------- FORMAT UTILITAIRE POUR RÉPONSES IRC -----------
 // #define REPLY_FORMAT(num_rply_numb, nickname) (std::string(":") + SERVER_NAME + " " + num_rply_numb + " " + nickname + " ")
@@ -86,5 +88,8 @@ void pass(Client &client, std::string pass);
 void nick(Client &client, std::string nick);
 void user(Client &client, std::string user);
 void privmsg(Client &client, std::string message);
+
+void join(Client &client, std::string args);
+// void topic()
 
 #endif
