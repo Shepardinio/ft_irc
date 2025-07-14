@@ -6,7 +6,7 @@
 /*   By: mel-yand <mel-yand@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/06/27 15:16:19 by ajamshid          #+#    #+#             */
-/*   Updated: 2025/07/11 14:21:13 by mel-yand         ###   ########.fr       */
+/*   Updated: 2025/07/14 20:30:04 by mel-yand         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -110,21 +110,57 @@ void user(Client &client, std::string user)
 
 void privmsg(Client &client, std::string message)
 {
-    std::cout << ">> Appel de la fonction privmsg()" << std::endl;
-    std::string reciever;
+	std::string reciever;
     std::string rest;
     std::istringstream iss(message);
     iss >> reciever;
     std::getline(iss, rest);
+	
+	if (reciever.empty()) {
+		std::cout << ">> pas de destinataire" << std::endl;
+		send_msg(client.fd, ":server 411 " + client.nickname + " :No recipient given (PRIVMSG)\r\n");
+    	return;
+	}
+	if (rest.empty()) {
+		std::cout << ">> pas de message" << std::endl;
+    	send_msg(client.fd, ":server 412 " + client.nickname + " :No text to send\r\n");
+    	return;
+	}
 
     if (rest.size() >= 2 && rest[0] == ' ' && rest[1] == ':')
         rest = rest.substr(2);
-    else if (!rest.empty() && rest[0] == ' ')
+    else if (!rest.empty() && rest[0] == ' ') {
         rest = rest.substr(1);
+	}
 
+	if (!reciever.empty() && reciever[0] == '#')
+    {
+        if (!g_channels.channelExists(reciever))
+        {
+            send_msg(client.fd, ":server 403 " + client.nickname + " " + reciever + " :No such channel\r\n");
+            return;
+        }
+
+        const std::set<int> &clients = g_channels.getClientsInChannel(reciever);
+        if (clients.find(client.fd) == clients.end())
+        {
+            send_msg(client.fd, ":server 442 " + client.nickname + " " + reciever + " :You're not on that channel\r\n");
+            return;
+        }
+
+        std::string msg = ":" + client.nickname + " PRIVMSG " + reciever + " :" + rest + "\r\n";
+        for (std::set<int>::const_iterator it = clients.begin(); it != clients.end(); ++it)
+        {
+            if (*it != client.fd)
+                send_msg(*it, msg);
+        }
+        return;
+    }
+		
     int dest_fd = clients_bj.get_fd_of(reciever);
     if (dest_fd == -1)
     {
+		std::cout << ">> pas trouver le  destinataire" << std::endl;
         send_msg(client.fd, ":server 401 " + client.nickname + " " + reciever + " :No such nick\r\n");
         return;
     }

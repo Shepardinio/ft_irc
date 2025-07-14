@@ -19,6 +19,7 @@
 
 #define MAX_CLIENTS 10
 #define BUFFER_SIZE 512
+// #define SERVER_NAME "irc.42.fr"
 // #define HOST_NAME "localhost"
 
 // // ----------- FORMAT UTILITAIRE POUR RÉPONSES IRC -----------
@@ -73,6 +74,8 @@ public:
     std::string &get_client_send_buffer(int fd);
     std::map<std::string, int> &get_nick_to_fd();
     int get_fd_of(std::string nick);
+
+    bool nickExists(const std::string &nick) const;
 };
 
 extern Clients clients_bj;
@@ -88,8 +91,5 @@ void pass(Client &client, std::string pass);
 void nick(Client &client, std::string nick);
 void user(Client &client, std::string user);
 void privmsg(Client &client, std::string message);
-
-void join(Client &client, std::string args);
-// void topic()
 
 #endif

@@ -1,4 +1,3 @@
-
 #include "Clients.hpp"
 
 int set_nonblocking(int fd)
@@ -41,6 +40,10 @@ void handle_command(Client &client, const std::string &line)
 	}
 	else if (cmd == "JOIN")
 		join(client, rest);
+	else if (cmd == "TOPIC")
+		topic(client, rest);
+	// else if (cmd == "INVITE")
+	// 	invite(client, rest);
 	if (client.pass_ok && !client.nickname.empty() && !client.username.empty() && !client.registered)
 	{
 		client.registered = true;
