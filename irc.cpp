@@ -42,8 +42,10 @@ void handle_command(Client &client, const std::string &line)
 		join(client, rest);
 	else if (cmd == "TOPIC")
 		topic(client, rest);
-	// else if (cmd == "INVITE")
-	// 	invite(client, rest);
+	else if (cmd == "INVITE")
+		invite(client, rest);
+	else if (cmd == "KICK")
+		kick(client, rest);
 	if (client.pass_ok && !client.nickname.empty() && !client.username.empty() && !client.registered)
 	{
 		client.registered = true;

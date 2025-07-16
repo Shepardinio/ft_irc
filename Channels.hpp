@@ -50,6 +50,7 @@ extern Channels g_channels;
 
 void join(Client &client, std::string args);
 void topic(Client &client, std::string args);
-// void invite(Client &client, std::string args);
+void invite(Client &client, std::string args);
+void kick(Client &client, std::string args);
 
 #endif

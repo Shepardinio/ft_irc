@@ -14,10 +14,14 @@ bool Channels::createChannel(const std::string &name, int creatorFD, const std::
     newChan.name = name;
     newChan.topic = "";
     newChan.password = password;
+    std::cout << "passw de" << name << " = " << password << std::endl;
 
     newChan.clients.insert(creatorFD);
     newChan.operators.insert(creatorFD);
     newChan.modes.insert('t');
+
+    if (!password.empty())
+        newChan.modes.insert('k');
 
     _channels[name] = newChan;
     return true;
@@ -132,14 +136,12 @@ void Channels::setTopic(const std::string &channelName, const std::string &newTo
 
 void Channels::inviteClient(const std::string &channelName, int clientFd)
 {
-    std::map<std::string, Channel>::const_iterator it = _channels.find(channelName);
+    std::map<std::string, Channel>::iterator it = _channels.find(channelName);
     if (it == this->_channels.end())
         return;
     if (it->second.clients.count(clientFd) != 0)
         return;
-    else
-        this->_channels[it->first].invited.insert(clientFd);
-    return;
+    it->second.invited.insert(clientFd);
 }
 
 bool Channels::isInvited(const std::string &channelName, int clientFd) const

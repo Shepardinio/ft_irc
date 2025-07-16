@@ -49,8 +49,21 @@ void join(Client &client, std::string args)
     std::istringstream iss(args);
     iss >> channelsStr >> keysStr;
 
+    // LOGS DEBUG
+    std::cout << "[JOIN DEBUG] args: \"" << args << "\"" << std::endl;
+    std::cout << "[JOIN DEBUG] channelsStr: \"" << channelsStr << "\"" << std::endl;
+    std::cout << "[JOIN DEBUG] keysStr: \"" << keysStr << "\"" << std::endl;//
+
     std::vector<std::string> channels = split(channelsStr, ',');
     std::vector<std::string> keys = split(keysStr, ',');
+
+    // LOGS DEBUG
+    std::cout << "[JOIN DEBUG] Parsed channels:" << std::endl;
+    for (size_t i = 0; i < channels.size(); ++i)
+        std::cout << "  [" << i << "] = \"" << channels[i] << "\"" << std::endl;
+    std::cout << "[JOIN DEBUG] Parsed keys:" << std::endl;
+    for (size_t i = 0; i < keys.size(); ++i)
+        std::cout << "  [" << i << "] = \"" << keys[i] << "\"" << std::endl;//
 
     if (channels.empty() || channels[0].empty())
     {
@@ -71,25 +84,32 @@ void join(Client &client, std::string args)
 
         if (!g_channels.channelExists(channelName))
             g_channels.createChannel(channelName, client.fd, passw);
-        else if (!g_channels.checkPassword(channelName, passw))
+        else 
         {
-            send_msg(client.fd, ":server 475 " + client.nickname + " " + channelName + " :Cannot join channel (+k)\r\n");
-            continue;
-        }
-        else if (g_channels.hasMode(channelName, 'i'))
-        {
-            send_msg(client.fd, ":server 473 " + client.nickname + " " + channelName + " :Cannot join channel (+i)\r\n");
-            continue;
-        }
-        else
-        {
+            bool hasValidPass = g_channels.checkPassword(channelName, passw);
+            bool isInvited = g_channels.isInvited(channelName, client.fd);
+            bool isPrivate = g_channels.hasMode(channelName, 'i');
+            bool hasKey = g_channels.hasMode(channelName, 'k');
+
+            if (hasKey && !hasValidPass)
+            {
+                send_msg(client.fd, ":server 475 " + client.nickname + " " + channelName + " :Cannot join channel (+k)\r\n");
+                continue;
+            }
+            if (isPrivate && !isInvited)
+            {
+                send_msg(client.fd, ":server 473 " + client.nickname + " " + channelName + " :Cannot join channel (+i)\r\n");
+                continue;
+            }
             if (!g_channels.addClientToChannel(channelName, client.fd))
             {
                 // send_msg(client.fd, ":server 443 " + client.nickname + " " + channelName + " :is already on channel\r\n"); is not in numeric repli
                 continue;
             }
+            if (isInvited)
+                g_channels.removeInvite(channelName, client.fd);
         }
-        
+
         const std::set<int> &clientsInChannel = g_channels.getClientsInChannel(channelName);
         for (std::set<int>::const_iterator it = clientsInChannel.begin(); it != clientsInChannel.end(); ++it)
         {
@@ -146,40 +166,66 @@ void topic(Client &client, std::string args)
             send_msg(client.fd, ":server 332 " + client.nickname + " " + channelName + " :" + g_channels.getTopic(channelName) + "\r\n");
 }
 
-// void invite(Client &client, std::string args)
-// {
-//     std::istringstream iss(args);
-//     std::string nick;
-//     std::string channelName;
-//     int target_fd = 0;
+void invite(Client &client, std::string args)
+{
+    std::istringstream iss(args);
+    std::string nick;
+    std::string channelName;
+    int target_fd = 0;
 
-//     iss >> nick >> channelName;
+    iss >> nick >> channelName;
 
-//     if (nick.empty() || channelName.empty())
-//        return send_msg(client.fd, ":server 461 " + client.nickname + " INVITE :Not enough parameters\r\n");
+    if (nick.empty() || channelName.empty())
+       return send_msg(client.fd, ":server 461 " + client.nickname + " INVITE :Not enough parameters\r\n");
 
-//     if (!g_channels.channelExists(channelName))
-//         return send_msg(client.fd, ":server 401 " + client.nickname + " " + nick + " :No such channel\r\n");
+    if (!g_channels.channelExists(channelName))
+        return send_msg(client.fd, ":server 401 " + client.nickname + " " + nick + " :No such channel\r\n");
 
-//     if (!g_channels.isClientInChannel(channelName, client.fd))
-//         return send_msg(client.fd, ":server 442 " + client.nickname + " " + channelName + " :You're not on that channel\r\n");
+    if (!g_channels.isClientInChannel(channelName, client.fd))
+        return send_msg(client.fd, ":server 442 " + client.nickname + " " + channelName + " :You're not on that channel\r\n");
 
-//     if (g_channels.hasMode(channelName, 'i') && !g_channels.isOperator(channelName, client.fd))
-//         return send_msg(client.fd, ":server 482 " + client.nickname + " " + channelName + " :You're not channel operator\r\n");
+    if (g_channels.hasMode(channelName, 'i') && !g_channels.isOperator(channelName, client.fd))
+        return send_msg(client.fd, ":server 482 " + client.nickname + " " + channelName + " :You're not channel operator\r\n");
     
-//     if (clients_bj.nickExists(nick))
-//         target_fd = clients_bj.get_fd_of(nick);
-//     else {
-//         return send_msg(client.fd, ":server 401 " + client.nickname + " " + nick + " :No such nick\r\n");
-//     }
+    if (clients_bj.nickExists(nick))
+        target_fd = clients_bj.get_fd_of(nick);
+    else {
+        return send_msg(client.fd, ":server 401 " + client.nickname + " " + nick + " :No such nick\r\n");
+    }
 
-//     if (g_channels.isClientInChannel(channelName, target_fd))
-//         return send_msg(client.fd, ":server 443 " + client.nickname + " " + nick + " " + channelName + " :is already on channel\r\n");
+    if (g_channels.isClientInChannel(channelName, target_fd))
+        return send_msg(client.fd, ":server 443 " + client.nickname + " " + nick + " " + channelName + " :is already on channel\r\n");
     
-//     g_channels.addClientToChannel(channelName, target_fd);
-//     send_msg(client.fd, ":server 341 " + client.nickname + " " + nick + " " + channelName + "\r\n");
-//     send_msg(target_fd, ":" + client.nickname + " INVITE " + nick + " :" + channelName + "\r\n");
-// }
+    g_channels.inviteClient(channelName, target_fd);
+    send_msg(client.fd, ":server 341 " + client.nickname + " " + nick + " " + channelName + "\r\n");
+    send_msg(target_fd, ":" + client.nickname + " INVITE " + nick + " :" + channelName + "\r\n");
+}
+
+void kick(Client &client, std::string args)
+{
+    (void)client;
+    std::istringstream iss(args);
+    std::string channelsStr, nick, comment;
+    iss >> channelsStr >> nick;
+
+    // LOGS DEBUG
+    std::cout << "[KICK DEBUG] args: \"" << args << "\"" << std::endl;
+    std::cout << "[KICK DEBUG] channelsStr: \"" << channelsStr << "\"" << std::endl;
+    std::cout << "[KICK DEBUG] nick: \"" << nick << "\"" << std::endl;//
+
+    std::vector<std::string> channels = split(channelsStr, ',');
+    std::getline(iss, comment);
+
+    // LOGS DEBUG
+    std::cout << "[KICK DEBUG] Parsed channels:" << std::endl;
+    for (size_t i = 0; i < channels.size(); ++i)
+        std::cout << "  [" << i << "] = \"" << channels[i] << "\"" << std::endl;
+    std::cout << "[KICK DEBUG] Parsed nick:" << std::endl;
+    std::cout << "' "<< nick << " '" << std::endl;
+    std::cout << "[KICK DEBUG] Parsed nicks:" << std::endl;
+    std::cout << "' "<< comment << " '" << std::endl;//
+    
+}
 
 /*
 JOIN
