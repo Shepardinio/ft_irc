@@ -91,7 +91,7 @@ void join(Client &client, std::string args)
             bool isPrivate = g_channels.hasMode(channelName, 'i');
             bool hasKey = g_channels.hasMode(channelName, 'k');
 
-            if (hasKey && !hasValidPass)
+            if (hasKey && !hasValidPass && !isInvited)
             {
                 send_msg(client.fd, ":server 475 " + client.nickname + " " + channelName + " :Cannot join channel (+k)\r\n");
                 continue;
@@ -203,10 +203,10 @@ void invite(Client &client, std::string args)
 
 void kick(Client &client, std::string args)
 {
-    (void)client;
     std::istringstream iss(args);
     std::string channelsStr, nick, comment;
     iss >> channelsStr >> nick;
+    int target_fd = 0;
 
     // LOGS DEBUG
     std::cout << "[KICK DEBUG] args: \"" << args << "\"" << std::endl;
@@ -224,10 +224,68 @@ void kick(Client &client, std::string args)
     std::cout << "' "<< nick << " '" << std::endl;
     std::cout << "[KICK DEBUG] Parsed nicks:" << std::endl;
     std::cout << "' "<< comment << " '" << std::endl;//
-    
+
+    if (channelsStr.empty() || nick.empty())
+        return send_msg(client.fd, ":server 461 " + client.nickname + " KICK :Not enough parameters\r\n");
+    if (!clients_bj.nickExists(nick))
+        return;
+    target_fd = clients_bj.get_fd_of(nick);
+
+    for (size_t i = 0; i < channels.size(); i++)
+    {
+        if (!g_channels.channelExists(channels[i]))
+        {
+            send_msg(client.fd, ":server 403 " + client.nickname + " " + channels[i] + " :No such channel\r\n");
+            continue;
+        }
+        if (!g_channels.isClientInChannel(channels[i], client.fd))
+        {
+            send_msg(client.fd, ":server 442 " + client.nickname + " " + channels[i] + " :You're not on that channel\r\n");
+            continue;
+        }
+        if (!g_channels.isClientInChannel(channels[i], target_fd))
+        {
+            send_msg(client.fd, ":server 442 " + client.nickname + " " + channels[i] + " :They’re not on that channel\r\n");
+            continue;
+        }
+        if (!g_channels.isOperator(channels[i], client.fd))
+        {
+            send_msg(client.fd, ":server 482 " + client.nickname + " " + channels[i] + " :You're not channel operator\r\n");
+            continue;
+        }
+        if (comment.empty())
+            comment = "Kicked"; // commentaire par défaut
+        std::string kick_msg = ":" + client.nickname + " KICK " + channels[i] + " " + nick + " " + comment + "\r\n";
+        std::cout << "' kick_msg = "<< kick_msg << " '" << std::endl;
+        const std::set<int> clientsInChannel = g_channels.getClientsInChannel(channels[i]);
+        for (std::set<int>::const_iterator it = clientsInChannel.begin(); it != clientsInChannel.end(); ++it)
+        {
+            int fd = *it;
+            send_msg(fd, kick_msg);
+        }
+        g_channels.removeClientFromChannel(channels[i], target_fd);
+    }
 }
 
+
+
 /*
+
+MODE
+221 RPL_UMODEIS          "<user mode string>"                       ?
+324 RPL_CHANNELMODEIS    "<channel> <mode> <mode params>"           ?
+367 RPL_BANLIST          "<channel> <banid>"                        ?
+368 RPL_ENDOFBANLIST                                                ?
+401 ERR_NOSUCHNICK       "<nickname> :No such nick/channel"
+403 ERR_NOSUCHCHANNEL    "<channel name> :No such channel"
+442 ERR_NOTONCHANNEL     "<channel> :You're not on that channel"
+461 ERR_NEEDMOREPARAMS   "<command> :Not enough parameters"
+467 ERR_KEYSET           "<channel> :Channel key already set"
+472 ERR_UNKNOWNMODE      "<char> :is unknown mode char to me"
+482 ERR_CHANOPRIVSNEEDED "<channel> :You're not channel operator"
+501 ERR_UMODEUNKNOWNFLAG ":Unknown MODE flag"                       ?
+502 ERR_USERSDONTMATCH   ":Cant change mode for other users"        ?
+
 JOIN
 403 ERR_NOSUCHCHANNEL  "No such channel"
 461 ERR_NEEDMOREPARAMS "Not enough parameters"
@@ -260,12 +318,10 @@ INVITE
 341 RPL_INVITING         "<channel> <nick>"                           x
 
 KICK
-403 ERR_NOSUCHCHANNEL    "<channel name> :No such channel"
-442 ERR_NOTONCHANNEL     "<channel> :You're not on that channel"
-461 ERR_NEEDMOREPARAMS   "<command> :Not enough parameters"
-482 ERR_CHANOPRIVSNEEDED "<channel> :You're not channel operator"
+403 ERR_NOSUCHCHANNEL    "<channel name> :No such channel"            x
+442 ERR_NOTONCHANNEL     "<channel> :You're not on that channel"      x
+461 ERR_NEEDMOREPARAMS   "<command> :Not enough parameters"           x
+482 ERR_CHANOPRIVSNEEDED "<channel> :You're not channel operator"     x
 
 exemple: send_msg(client.fd, ":" SERVER_NAME " 401 " + client.nickname + " " + reciever + " :No such nick/channel\r\n");
-
-probleme quand /join j'ai la fonction invite
 */
