@@ -95,6 +95,34 @@ void Channels::removeMode(const std::string &channelName, char mode)
     this->_channels[channelName].modes.erase(mode);
 }
 
+void Channels::setPassword(const std::string &channelName, const std::string &newPass)
+{
+    this->_channels[channelName].password = newPass;
+}
+
+void Channels::removePassword(const std::string &channelName)
+{
+    this->_channels[channelName].password = "";
+}
+
+void Channels::setUserLimit(const std::string &channelName, int newUserLimit)
+{
+    this->_channels[channelName].user_limit = newUserLimit;
+}
+
+void Channels::removeUserLimit(const std::string &channelName)
+{
+    this->_channels[channelName].user_limit = -1;
+}
+
+int  Channels::getUserLimit(const std::string &channelName) const
+{
+    std::map<std::string, Channel>::const_iterator it = _channels.find(channelName);
+    if (it != this->_channels.end())
+        return it->second.user_limit;
+    return INT_MIN;
+}
+
 const std::set<int> &Channels::getClientsInChannel(const std::string &name) const
 {
     static const std::set<int> empty;
@@ -157,4 +185,33 @@ void Channels::removeInvite(const std::string &channelName, int clientFd)
     std::map<std::string, Channel>::iterator it = _channels.find(channelName);
     if (it != _channels.end())
         it->second.invited.erase(clientFd);
+}
+
+std::string Channels::getModeString(const std::string &channelName) const
+{
+    std::map<std::string, Channel>::const_iterator it = _channels.find(channelName);
+    if (it == _channels.end())
+        return "";
+
+    const Channel &chan = it->second;
+    std::string modeFlags = "+";
+    std::vector<std::string> params;
+
+    for (std::set<char>::const_iterator mit = chan.modes.begin(); mit != chan.modes.end(); ++mit) {
+        char mode = *mit;
+        modeFlags += mode;
+
+        if (mode == 'k' && !chan.password.empty())
+            params.push_back(chan.password);
+        else if (mode == 'l') {
+            params.push_back(std::to_string(chan.user_limit));
+        }
+    }
+
+    std::ostringstream oss;
+    oss << modeFlags;
+    for (std::vector<std::string>::const_iterator pit = params.begin(); pit != params.end(); ++pit)
+        oss << " " << *pit;
+
+    return oss.str();
 }

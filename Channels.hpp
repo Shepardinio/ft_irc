@@ -3,6 +3,8 @@
 
 #include "Clients.hpp"
 #include <set>
+#include <climits>
+#include <cctype>
 
 class Client;
 
@@ -15,6 +17,7 @@ struct Channel
     std::set<int> invited;
     std::string password;
     std::set<char> modes;
+    int user_limit = -1;
 };
 
 class Channels
@@ -34,6 +37,11 @@ class Channels
         bool hasMode(const std::string &channelName, char mode) const;
         void addMode(const std::string &channelName, char mode);
         void removeMode(const std::string &channelName, char mode);
+        void setPassword(const std::string &channelName, const std::string &newPass);
+        void removePassword(const std::string &channelName);
+        void setUserLimit(const std::string &channelName, int newUserLimit);
+        void removeUserLimit(const std::string &channelName);
+        int  getUserLimit(const std::string &channelName) const;
 
         const std::set<int> &getClientsInChannel(const std::string &name) const;
         bool isClientInChannel(const std::string &channelName, int clientFd) const;
@@ -41,9 +49,9 @@ class Channels
         const std::string &getTopic(const std::string &channelName) const;
         void setTopic(const std::string &channelName, const std::string &newTopic);
         void inviteClient(const std::string &channelName, int clientFd);
-        bool isInvitedToChannel(const std::string &channelName, int clientFd);
         bool isInvited(const std::string &channelName, int clientFd) const;
         void removeInvite(const std::string &channelName, int clientFd);
+        std::string getModeString(const std::string &channelName) const;
 };
 
 extern Channels g_channels;
@@ -52,5 +60,6 @@ void join(Client &client, std::string args);
 void topic(Client &client, std::string args);
 void invite(Client &client, std::string args);
 void kick(Client &client, std::string args);
+void mode(Client &client, std::string args);
 
 #endif

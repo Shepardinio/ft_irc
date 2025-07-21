@@ -46,6 +46,8 @@ void handle_command(Client &client, const std::string &line)
 		invite(client, rest);
 	else if (cmd == "KICK")
 		kick(client, rest);
+	else if (cmd == "MODE")
+		mode(client, rest);
 	if (client.pass_ok && !client.nickname.empty() && !client.username.empty() && !client.registered)
 	{
 		client.registered = true;
