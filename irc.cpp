@@ -1,29 +1,48 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   irc.cpp                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: ajamshid <ajamshid@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/07/27 16:05:54 by ajamshid          #+#    #+#             */
+/*   Updated: 2025/07/30 19:57:20 by ajamshid         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "Clients.hpp"
-
-int set_nonblocking(int fd)
-{
-	int flags = fcntl(fd, F_GETFL, 0);
-	if (flags == -1)
-		return -1;
-
-	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
-		return -1;
-
-	return 0;
-}
 
 Clients clients_bj;
 std::string server_password;
 Channels g_channels;
 
+int set_nonblocking(int fd)
+{
+	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+		return -1;
+
+	return 0;
+}
+std::string get_username(std::string rest)
+{
+	std::string username;
+	std::istringstream iss(rest);
+	iss >> username;
+	return username;
+}
+
 void handle_command(Client &client, const std::string &line)
 {
+	std::cout <<"---------" + line + "---------" << std::endl;
+	if(client.disconnect)
+		return;
 	std::string cmd;
 	std::string rest;
 	std::istringstream iss(line);
 	iss >> cmd;
 	std::getline(iss, rest);
-	rest = rest.substr(1);
+	if (rest.size() > 1)
+		rest = rest.substr(1);
 	if (cmd == "CAP" && rest.substr(0, 2) == "LS")
 		send_msg(client.fd, "CAP * LS :\r\n");
 	else if (cmd == "PASS")
@@ -31,12 +50,14 @@ void handle_command(Client &client, const std::string &line)
 	else if (cmd == "NICK")
 		nick(client, rest);
 	else if (cmd == "USER")
-		user(client, rest);
+		user(client, get_username(rest));
 	else if (cmd == "PRIVMSG")
 		privmsg(client, rest);
+	else if (cmd == "NOTICE")
+		notice(client, rest);
 	else if (cmd == "PING")
 	{
-		send_msg(client.fd, "PONG server\r\n");
+		send_msg(client.fd, "PONG ircserv\r\n");
 	}
 	else if (cmd == "JOIN")
 		join(client, rest);
@@ -51,7 +72,7 @@ void handle_command(Client &client, const std::string &line)
 	if (client.pass_ok && !client.nickname.empty() && !client.username.empty() && !client.registered)
 	{
 		client.registered = true;
-		send_msg(client.fd, ":server 001 " + client.nickname + " :Welcome to the IRC server\r\n");
+		send_msg(client.fd, ":ircserv 001 " + client.nickname + " :Welcome to the IRC ircserv\r\n");
 	}
 }
 
@@ -84,11 +105,9 @@ void send_data(std::vector<pollfd> &pollfds, int i)
 {
 	Client &client = clients_bj.get_client(pollfds[i].fd);
 	ssize_t sent = send(pollfds[i].fd, client.send_buffer.c_str(), client.send_buffer.size(), 0);
-
 	if (sent == -1)
 	{
-		if (errno != EAGAIN && errno != EWOULDBLOCK)
-			disconnect_client(pollfds[i].fd);
+		disconnect_client(pollfds[i].fd);
 	}
 	else if ((size_t)sent < client.send_buffer.size())
 	{
@@ -98,6 +117,12 @@ void send_data(std::vector<pollfd> &pollfds, int i)
 	{
 		client.send_buffer.clear();
 		pollfds[i].events &= ~POLLOUT;
+	}
+	if(client.disconnect == 1)
+	{ 
+		usleep(100000);
+		shutdown(client.fd, SHUT_RDWR);
+		disconnect_client(client.fd);
 	}
 }
 
@@ -132,6 +157,16 @@ int run_fds(std::vector<pollfd> &pollfds, int listen_fd)
 	return 0;
 }
 
+void reciever(int sig)
+{
+	if (sig == SIGINT)
+	{
+		for (size_t i = 0; i < clients_bj.get_pollfds().size(); ++i)
+			close(clients_bj.get_pollfds()[i].fd);
+		exit(1);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	int port;
@@ -146,12 +181,21 @@ int main(int argc, char **argv)
 		return (0);
 	if (set_nonblocking(listen_fd) < 0)
 		return 0;
+
+	struct sigaction sa;
+	sa.sa_handler = reciever;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	if (sigaction(SIGINT, &sa, 0) == -1)
+		std::cerr << "sigaction: error handling signal." << std::endl;
+
 	std::cout << "Server started on port " << port << "\n";
 	std::vector<pollfd> &pollfds = clients_bj.get_pollfds();
 	pollfds.push_back((pollfd){listen_fd, POLLIN, 0});
 	while (true)
 		if (run_fds(pollfds, listen_fd) < 0)
 			break;
-	close(listen_fd);
+	for (size_t i = 0; i < pollfds.size(); ++i)
+		close(pollfds[i].fd);
 	return (0);
 }

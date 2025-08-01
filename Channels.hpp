@@ -6,7 +6,7 @@
 #include <climits>
 #include <cctype>
 
-class Client;
+struct Client;
 
 struct Channel
 {
