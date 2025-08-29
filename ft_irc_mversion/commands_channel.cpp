@@ -203,7 +203,7 @@ void invite(Client &client, std::string args)
         return send_msg(client.fd, ":ircserv 401 " + client.nickname + " " + nick + " :No such channel\r\n");
     if (!g_channels.isClientInChannel(channelName, client.fd))
         return send_msg(client.fd, ":ircserv 442 " + client.nickname + " " + channelName + " :You're not on that channel\r\n");
-    if (!g_channels.isOperator(channelName, client.fd)) /*g_channels.hasMode(channelName, 'i') && */
+    if (g_channels.hasMode(channelName, 'i') && !g_channels.isOperator(channelName, client.fd))
         return send_msg(client.fd, ":ircserv 482 " + client.nickname + " " + channelName + " :You're not channel operator\r\n");
     if (clients_bj.nickExists(nick))
         target_fd = clients_bj.get_fd_of(nick);
@@ -274,7 +274,7 @@ void kick(Client &client, std::string args)
         }
         if (!g_channels.isOperator(channels[i], client.fd))
         {
-            send_msg(client.fd, ":ircserv 482 " + client.nickname + " " + channels[i] + " :You're not channel operator\r\n");
+            send_msg(client.fd, ":ircserv 482 " + client.nickname + " " + channels[i] + " :You're not channel operator k\r\n");
             continue;
         }
         if (comment.empty())
@@ -282,12 +282,12 @@ void kick(Client &client, std::string args)
         std::string kick_msg = ":" + client.nickname + " KICK " + channels[i] + " " + nick + " " + comment + "\r\n";
         std::cout << "' kick_msg = " << kick_msg << " '" << std::endl;
         const std::set<int> clientsInChannel = g_channels.getClientsInChannel(channels[i]);
-        g_channels.removeClientFromChannel(channels[i], target_fd);
         for (std::set<int>::const_iterator it = clientsInChannel.begin(); it != clientsInChannel.end(); ++it)
         {
             int fd = *it;
             send_msg(fd, kick_msg);
         }
+        g_channels.removeClientFromChannel(channels[i], target_fd);
     }
 }
 
@@ -360,7 +360,7 @@ void mode(Client &client, std::string args)
         return send_msg(client.fd, ":ircserv 324 " + client.nickname + " " + channelName + " " + modeStr + "\r\n");
     }
     if (modes[0] == 'b')
-        return send_msg(client.fd, ":ircserv 368 c #a :End of channel ban list\r\n");
+        return send_msg(client.fd, ":ircserv 368 c #a :End of channel ban list");
     if (!g_channels.isOperator(channelName, client.fd))
         return send_msg(client.fd, ":ircserv 482 " + client.nickname + " " + channelName + " :You're not channel operator\r\n");
     if (!isValidModeString(client, modes))

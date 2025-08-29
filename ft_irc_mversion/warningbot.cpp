@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   warningbot.cpp                                     :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: ajamshid <ajamshid@student.42.fr>          +#+  +:+       +#+        */
+/*   By: mel-yand <mel-yand@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/07/23 19:31:14 by ajamshid          #+#    #+#             */
-/*   Updated: 2025/07/30 16:42:11 by ajamshid         ###   ########.fr       */
+/*   Updated: 2025/08/01 14:06:57 by mel-yand         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,7 @@ struct Client
 
 Client warning_bot;
 struct pollfd pollfds;
-std::vector<std::string> bad_words;
+std::vector<std::string> bad_words = {"fuck", "shit"};
 
 char toLowerChar(char c) {
     return std::tolower(static_cast<unsigned char>(c));
