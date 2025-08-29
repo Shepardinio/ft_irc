@@ -6,7 +6,7 @@
 /*   By: mel-yand <mel-yand@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/07/23 19:31:14 by ajamshid          #+#    #+#             */
-/*   Updated: 2025/08/01 01:52:53 by mel-yand         ###   ########.fr       */
+/*   Updated: 2025/08/01 14:06:57 by mel-yand         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -292,7 +292,7 @@ int main(int argc, char **argv)
     }
     std::cout << "connected to the ircserv" << std::endl;
     pollfds = (struct pollfd){fd, POLLIN, 0};
-    send_bot_msg("PASS " + server_password + "\r\nNICK warningbot\r\nUSER warningbot\r\n");
+    send_bot_msg("PASS " + server_password + "\r\nNICK warnbot\r\nUSER warnbot\r\n");
     while (true)
         if (run_fds() < 0)
             break;
