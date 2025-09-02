@@ -69,5 +69,6 @@ int socket_prep_and_binding(int port)
         perror("listen");
         return -1;
     }
+    // std::cout << "Server started on port " << port << "\n";
     return listen_fd;
 }

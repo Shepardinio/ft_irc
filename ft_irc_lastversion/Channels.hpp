@@ -5,7 +5,6 @@
 #include <set>
 #include <climits>
 #include <cctype>
-#include <stdlib.h>
 
 struct Client;
 
@@ -18,7 +17,7 @@ struct Channel
     std::set<int> invited;
     std::string password;
     std::set<char> modes;
-    int user_limit;
+    int user_limit = -1;
 };
 
 class Channels

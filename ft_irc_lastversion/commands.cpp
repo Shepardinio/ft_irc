@@ -39,6 +39,7 @@ PRIVMSG othernick :hello privately
 void send_msg(int fd, const std::string &message)
 {
 	std::map<int, Client> cl = clients_bj.get_clients();
+	std::cout << cl[fd].nickname << "message(" << message << ')' << std::endl;
 	for (size_t i = 0; i < clients_bj.get_pollfds().size(); ++i)
 		if (clients_bj.get_pollfds()[i].fd == fd)
 		{
@@ -56,6 +57,7 @@ bool is_valid_nick(const std::string &nick)
 
 void disconnect_client(int fd)
 {
+	std::cout << "Client disconnected (fd " << fd << ")\n";
 	clients_bj.remove_client(fd);
 }
 
@@ -67,11 +69,14 @@ void pass(Client &client, std::string pass)
 		return;
 	}
 	if (pass == server_password)
+	{
+		std::cout << "Pass OK =" << pass << std::endl;
 		client.pass_ok = true;
+	}
 	else
 	{
 		client.disconnect = 1;
-		send_msg(client.fd, ":ircserv 464 * :Wrong Password\r\n"); //
+		send_msg(client.fd, ":ircserv 464 * :Password required\r\n"); //
 	}
 }
 
@@ -85,19 +90,11 @@ void nick(Client &client, std::string nick)
 	}
 	else if (!is_valid_nick(nick) || clients_bj.get_nick_to_fd().count(nick))
 	{
-		if (client.registered && clients_bj.get_nick_to_fd().count(nick))
-			send_msg(client.fd, ":ircserv 433 * " + nick + " :Nickname format error\r\n");
-		else if (client.registered)
-			send_msg(client.fd, ":ircserv 433 * " + nick + " :Nickname already in use\r\n");
-		else if (clients_bj.get_nick_to_fd().count(nick))
-		{
-			std::string error = ":ircserv 433 * " + nick + " :Nickname format error\r\n";
-			send_msg(client.fd, error);
-			client.disconnect = 1;
-		}
+		if (client.registered)
+			send_msg(client.fd, ":ircserv 433 * " + nick + " :Nickname is already in use\r\n");
 		else
 		{
-			std::string error = ":ircserv 433 * " + nick + " :Nickname  already in use\r\n";
+			std::string error = ":ircserv 433 * " + nick + " :Nickname is already in use\r\n";
 			send_msg(client.fd, error);
 			client.disconnect = 1;
 		}
@@ -120,7 +117,10 @@ void user(Client &client, std::string user)
 	if (!client.pass_ok)
 		disconnect_client(client.fd);
 	else
+	{
+		std::cout << "User = " << user << std::endl;
 		client.username = user;
+	}
 }
 
 void privmsg(Client &client, std::string message)
@@ -133,11 +133,13 @@ void privmsg(Client &client, std::string message)
 
 	if (reciever.empty())
 	{
+		std::cout << ">> pas de destinataire" << std::endl;
 		send_msg(client.fd, ":ircserv 411 " + client.nickname + " :No recipient given (PRIVMSG)\r\n");
 		return;
 	}
 	if (rest.empty())
 	{
+		std::cout << ">> pas de message" << std::endl;
 		send_msg(client.fd, ":ircserv 412 " + client.nickname + " :No text to send\r\n");
 		return;
 	}
@@ -176,6 +178,7 @@ void privmsg(Client &client, std::string message)
 	int dest_fd = clients_bj.get_fd_of(reciever);
 	if (dest_fd == -1)
 	{
+		std::cout << ">> pas trouver le  destinataire" << std::endl;
 		send_msg(client.fd, ":ircserv 401 " + client.nickname + " " + reciever + " :No such nick\r\n");
 		return;
 	}

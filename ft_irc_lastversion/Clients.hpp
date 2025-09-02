@@ -27,8 +27,6 @@
 #include <sstream>
 #include <fcntl.h>
 #include <signal.h>
-#include <cerrno>
-#include <cstdio>
 
 #include "Channels.hpp"
 
@@ -58,15 +56,15 @@
 
 struct Client
 {
-    int fd;
+    int fd = 0;
     std::string nickname;
     std::string username;
-    bool pass_ok;
-    bool registered;
+    bool pass_ok = 0;
+    bool registered = 0;
     std::string channels;
     std::string recieve_buffer;
     std::string send_buffer;
-    bool disconnect;
+    bool disconnect = 0;
 };
 
 class Clients

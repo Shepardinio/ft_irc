@@ -11,10 +11,10 @@ bool Channels::createChannel(const std::string &name, int creatorFD, const std::
         return false;
     
     Channel newChan;
-    newChan.user_limit = -1;
     newChan.name = name;
     newChan.topic = "";
     newChan.password = password;
+    std::cout << "passw de" << name << " = " << password << std::endl;
 
     newChan.clients.insert(creatorFD);
     newChan.operators.insert(creatorFD);
@@ -204,9 +204,7 @@ std::string Channels::getModeString(const std::string &channelName) const
         if (mode == 'k' && !chan.password.empty())
             params.push_back(chan.password);
         else if (mode == 'l') {
-            std::ostringstream ss;
-            ss << chan.user_limit;
-            params.push_back(ss.str());
+            params.push_back(std::to_string(chan.user_limit));
         }
     }
 

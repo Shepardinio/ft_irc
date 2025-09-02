@@ -21,13 +21,18 @@ std::string Clients::get_nick(int fd)
 {
 	return (this->client[fd].nickname);
 }
+// std::vector<int> fds;                  // 4
+// std::vector<pollfd> pollfds;           // 3
+// std::map<int, Client> client;          // 2
+// std::map<std::string, int> nick_to_fd; // 1
 
 int Clients::remove_client(int fd)
 {
-	nick_to_fd.erase(client[fd].nickname);
-	client.erase(fd);
+	nick_to_fd.erase(client[fd].nickname); // 1
+	client.erase(fd);                      // 2
 	for (size_t i = 1; i < pollfds.size(); ++i)
 		if (pollfds[i].fd == fd)
+			// i could delete it in the disconnect function. no neet to do all of these
 			pollfds.erase(pollfds.begin() + i);
 	close(fd);
 	return (0);
@@ -42,10 +47,6 @@ void Clients::add_client(int fd)
 {
 	pollfds.push_back((pollfd){fd, POLLIN, 0});
 	client[fd] = Client();
-	client[fd].fd = 0;
-	client[fd].pass_ok = 0;
-    client[fd].registered = 0;
-	client[fd].disconnect = 0;
 	client[fd].fd = fd;
 	return ;
 }

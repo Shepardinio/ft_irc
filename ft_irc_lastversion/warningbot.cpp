@@ -100,7 +100,11 @@ int check_for_bad_words(std::string message)
 
 int set_nonblocking(int fd)
 {
-    if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1)
+        return -1;
+
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
         return -1;
 
     return 0;

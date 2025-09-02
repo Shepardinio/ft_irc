@@ -49,8 +49,21 @@ void join(Client &client, std::string args)
     std::istringstream iss(args);
     iss >> channelsStr >> keysStr;
 
+    // LOGS DEBUG
+    std::cout << "[JOIN DEBUG] args: \"" << args << "\"" << std::endl;
+    std::cout << "[JOIN DEBUG] channelsStr: \"" << channelsStr << "\"" << std::endl;
+    std::cout << "[JOIN DEBUG] keysStr: \"" << keysStr << "\"" << std::endl; //
+
     std::vector<std::string> channels = split(channelsStr, ',');
     std::vector<std::string> keys = split(keysStr, ',');
+
+    // LOGS DEBUG
+    std::cout << "[JOIN DEBUG] Parsed channels:" << std::endl;
+    for (size_t i = 0; i < channels.size(); ++i)
+        std::cout << "  [" << i << "] = \"" << channels[i] << "\"" << std::endl;
+    std::cout << "[JOIN DEBUG] Parsed keys:" << std::endl;
+    for (size_t i = 0; i < keys.size(); ++i)
+        std::cout << "  [" << i << "] = \"" << keys[i] << "\"" << std::endl; //
 
     if (channels.empty() || channels[0].empty())
     {
@@ -95,6 +108,11 @@ void join(Client &client, std::string args)
                 send_msg(client.fd, ":ircserv 471 " + client.nickname + " " + channelName + " :Cannot join channel (+l) - channel is full\r\n");
                 continue;
             }
+            if (!g_channels.addClientToChannel(channelName, client.fd))
+            {
+                // send_msg(client.fd, ":ircserv 443 " + client.nickname + " " + channelName + " :is already on channel\r\n"); is not in numeric repli
+                continue;
+            }
             if (isInvited)
                 g_channels.removeInvite(channelName, client.fd);
         }
@@ -108,9 +126,15 @@ void join(Client &client, std::string args)
 
         std::string topic = g_channels.getTopic(channelName);
         if (!topic.empty())
+        {
+            std::cout << "====================================" << std::endl;
             send_msg(client.fd, ":ircserv 332 " + client.nickname + " " + channelName + " " + topic + "\r\n");
+        }
         else
+        {
+            std::cout << "---------------------------------------" << std::endl;
             send_msg(client.fd, ":ircserv 332 " + client.nickname + " " + channelName + " :No topic is set\r\n");
+        }
 
         sendNamesList(client, channelName, clientsInChannel);
     }
@@ -126,6 +150,11 @@ void topic(Client &client, std::string args)
     std::getline(iss, newTopic);
     if (!newTopic.empty() && newTopic[0] == ' ')
         newTopic.erase(0, 1);
+
+    std::cout << "[TOPIC DEBUG] args: \"" << args << "\"" << std::endl;
+    std::cout << "[TOPIC DEBUG] channelName: \"" << channelName << "\"" << std::endl;
+    std::cout << "[TOPIC DEBUG] newTopic: \"" << newTopic << "\"" << std::endl; //
+
     if (channelName.empty())
     {
         send_msg(client.fd, ":ircserv 461 " + client.nickname + " TOPIC :Not enough parameters\r\n");
@@ -174,7 +203,7 @@ void invite(Client &client, std::string args)
         return send_msg(client.fd, ":ircserv 401 " + client.nickname + " " + nick + " :No such channel\r\n");
     if (!g_channels.isClientInChannel(channelName, client.fd))
         return send_msg(client.fd, ":ircserv 442 " + client.nickname + " " + channelName + " :You're not on that channel\r\n");
-    if (!g_channels.isOperator(channelName, client.fd))
+    if (!g_channels.isOperator(channelName, client.fd)) /*g_channels.hasMode(channelName, 'i') && */
         return send_msg(client.fd, ":ircserv 482 " + client.nickname + " " + channelName + " :You're not channel operator\r\n");
     if (clients_bj.nickExists(nick))
         target_fd = clients_bj.get_fd_of(nick);
@@ -203,8 +232,22 @@ void kick(Client &client, std::string args)
     iss >> channelsStr >> nick;
     int target_fd = 0;
 
+    // LOGS DEBUG
+    std::cout << "[KICK DEBUG] args: \"" << args << "\"" << std::endl;
+    std::cout << "[KICK DEBUG] channelsStr: \"" << channelsStr << "\"" << std::endl;
+    std::cout << "[KICK DEBUG] nick: \"" << nick << "\"" << std::endl; //
+
     std::vector<std::string> channels = split(channelsStr, ',');
     std::getline(iss, comment);
+
+    // LOGS DEBUG
+    std::cout << "[KICK DEBUG] Parsed channels:" << std::endl;
+    for (size_t i = 0; i < channels.size(); ++i)
+        std::cout << "  [" << i << "] = \"" << channels[i] << "\"" << std::endl;
+    std::cout << "[KICK DEBUG] Parsed nick:" << std::endl;
+    std::cout << "' " << nick << " '" << std::endl;
+    std::cout << "[KICK DEBUG] Parsed nicks:" << std::endl;
+    std::cout << "' " << comment << " '" << std::endl; //
 
     if (channelsStr.empty() || nick.empty())
         return send_msg(client.fd, ":ircserv 461 " + client.nickname + " KICK :Not enough parameters\r\n");
@@ -236,7 +279,8 @@ void kick(Client &client, std::string args)
         }
         if (comment.empty())
             comment = "Kicked";
-        std::string kick_msg = ":" + client.nickname + "!" + client.username + "@ircserv" + " KICK " + channels[i] + " " + nick + " " + comment + "\r\n";
+        std::string kick_msg = ":" + client.nickname + " KICK " + channels[i] + " " + nick + " " + comment + "\r\n";
+        std::cout << "' kick_msg = " << kick_msg << " '" << std::endl;
         const std::set<int> clientsInChannel = g_channels.getClientsInChannel(channels[i]);
         g_channels.removeClientFromChannel(channels[i], target_fd);
         for (std::set<int>::const_iterator it = clientsInChannel.begin(); it != clientsInChannel.end(); ++it)
@@ -297,6 +341,13 @@ void mode(Client &client, std::string args)
     while (iss >> tmp)
         param.push_back(tmp);
 
+    std::cout << "[MODE DEBUG] args: \"" << args << "\"" << std::endl;
+    std::cout << "[MODE DEBUG] channelName: \"" << channelName << "\"" << std::endl;
+    std::cout << "[MODE DEBUG] modes: \"" << modes << "\"" << std::endl;
+    std::cout << "[MODE DEBUG] Parsed Param:" << std::endl;
+    for (size_t i = 0; i < param.size(); ++i)
+        std::cout << "  [" << i << "] = \"" << param[i] << "\"" << std::endl;
+
     if (channelName.empty())
         return send_msg(client.fd, ":ircserv 461 " + client.nickname + " MODE :Not enough parameters\r\n");
     if (!g_channels.channelExists(channelName))
@@ -308,6 +359,8 @@ void mode(Client &client, std::string args)
         std::string modeStr = g_channels.getModeString(channelName);
         return send_msg(client.fd, ":ircserv 324 " + client.nickname + " " + channelName + " " + modeStr + "\r\n");
     }
+    if (modes[0] == 'b')
+        return send_msg(client.fd, ":ircserv 368 c #a :End of channel ban list\r\n");
     if (!g_channels.isOperator(channelName, client.fd))
         return send_msg(client.fd, ":ircserv 482 " + client.nickname + " " + channelName + " :You're not channel operator\r\n");
     if (!isValidModeString(client, modes))
@@ -394,6 +447,7 @@ void mode(Client &client, std::string args)
     if (modesStr.size() <= 1)
         return;
     std::string msg = ":" + client.nickname + "!" + client.username + "@ircserv MODE " + channelName + " " + modesStr;
+    // std::string msg = ":" + client.nickname + "!user@host MODE " + channelName + " " + modesStr;
     if (!paramStr.empty())
         msg += " " + paramStr;
     msg += "\r\n";
@@ -404,3 +458,60 @@ void mode(Client &client, std::string args)
         send_msg(fd, msg);
     }
 }
+
+/*
+
+MODE
+221 RPL_UMODEIS          "<user mode string>"                       ?
+324 RPL_CHANNELMODEIS    "<channel> <mode> <mode params>"           ?
+367 RPL_BANLIST          "<channel> <banid>"                        ?
+368 RPL_ENDOFBANLIST                                                ?
+401 ERR_NOSUCHNICK       "<nickname> :No such nick/channel"
+403 ERR_NOSUCHCHANNEL    "<channel name> :No such channel"          X
+442 ERR_NOTONCHANNEL     "<channel> :You're not on that channel"    X
+461 ERR_NEEDMOREPARAMS   "<command> :Not enough parameters"
+467 ERR_KEYSET           "<channel> :Channel key already set"
+472 ERR_UNKNOWNMODE      "<char> :is unknown mode char to me"       x
+482 ERR_CHANOPRIVSNEEDED "<channel> :You're not channel operator"
+501 ERR_UMODEUNKNOWNFLAG ":Unknown MODE flag"                       ?
+502 ERR_USERSDONTMATCH   ":Cant change mode for other users"        ?
+
+JOIN
+403 ERR_NOSUCHCHANNEL  "No such channel"
+461 ERR_NEEDMOREPARAMS "Not enough parameters"
+471 ERR_CHANNELISFULL  "Cannot join channel (+l)" manque lui
+473 ERR_INVITEONLYCHAN "Cannot join channel (+i)"
+475 ERR_BADCHANNELKEY  "Cannot join channel (+k)"
+
+405 ERR_TOOMANYCHANNELS "You have joined too many channels" optionnal
+
+
+TOPIC
+331 No topic is set
+send_msg(client.fd, ":ircserv 331 " + client.nickname + " " + channelName + " :No topic is set\r\n");
+332 <topic>
+send_msg(client.fd, ":ircserv 332 " + client.nickname + " " + channelName + " :" + topic + "\r\n");
+442 You're not on that channel
+send_msg(client.fd, ":ircserv 442 " + client.nickname + " " + channelName + " :You're not on that channel\r\n");
+461 Not enough parameters
+send_msg(client.fd, ":ircserv 461 " + client.nickname + " TOPIC :Not enough parameters\r\n");
+482 You're not channel operator
+send_msg(client.fd, ":ircserv 482 " + client.nickname + " " + channelName + " :You're not channel operator\r\n");
+
+INVITE
+401 ERR_NOSUCHNICK       "<nickname> :No such nick/channel"           X
+443 ERR_USERONCHANNEL    "<user> <channel> :is already on channel"    X
+442 ERR_NOTONCHANNEL     "<channel> :You're not on that channel"      x
+461 ERR_NEEDMOREPARAMS   "<command> :Not enough parameters"           x
+482 ERR_CHANOPRIVSNEEDED "<channel> :You're not channel operator"     x
+301 RPL_AWAY             "<nick> :<away message>"                     optionnal
+341 RPL_INVITING         "<channel> <nick>"                           x
+
+KICK
+403 ERR_NOSUCHCHANNEL    "<channel name> :No such channel"            x
+442 ERR_NOTONCHANNEL     "<channel> :You're not on that channel"      x
+461 ERR_NEEDMOREPARAMS   "<command> :Not enough parameters"           x
+482 ERR_CHANOPRIVSNEEDED "<channel> :You're not channel operator"     x
+
+exemple: send_msg(client.fd, ":" SERVER_NAME " 401 " + client.nickname + " " + reciever + " :No such nick/channel\r\n");
+*/

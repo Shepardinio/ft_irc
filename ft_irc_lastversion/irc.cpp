@@ -33,6 +33,7 @@ std::string get_username(std::string rest)
 
 void handle_command(Client &client, const std::string &line)
 {
+	std::cout <<"---------" + line + "---------" << std::endl;
 	if(client.disconnect)
 		return;
 	std::string cmd;
@@ -55,7 +56,9 @@ void handle_command(Client &client, const std::string &line)
 	else if (cmd == "NOTICE")
 		notice(client, rest);
 	else if (cmd == "PING")
+	{
 		send_msg(client.fd, "PONG ircserv\r\n");
+	}
 	else if (cmd == "JOIN")
 		join(client, rest);
 	else if (cmd == "TOPIC")
@@ -128,7 +131,7 @@ int run_fds(std::vector<pollfd> &pollfds, int listen_fd)
 	int client_fd;
 	if (poll(&pollfds[0], pollfds.size(), -1) < 0)
 	{
-		std::perror("poll");
+		perror("poll");
 		return -1;
 	}
 	for (size_t i = 0; i < pollfds.size(); ++i)
